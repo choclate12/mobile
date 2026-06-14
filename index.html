@@ -1,0 +1,779 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Secure Vault — Password Manager Interface</title>
+  <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/@tabler/icons-webfont@latest/tabler-icons.min.css">
+</head>
+<body>
+<style>
+  @import url('https://fonts.googleapis.com/css2?family=Share+Tech+Mono&family=Rajdhani:wght@400;500;600&display=swap');
+
+  *{box-sizing:border-box;margin:0;padding:0;}
+  html,body{width:100%;min-height:100vh;background:#050a12;}
+  :root{
+    --vault-bg:#050a12;
+    --vault-panel:#0a1628;
+    --vault-border:#0d2847;
+    --vault-accent:#00d4ff;
+    --vault-accent2:#7c3aed;
+    --vault-green:#00ff88;
+    --vault-red:#ff3366;
+    --vault-amber:#ffaa00;
+    --vault-text:#c8d8ff;
+    --vault-muted:#4a6a9a;
+    --vault-dim:#1a2d4a;
+    --scanline:rgba(0,212,255,0.03);
+  }
+  .vault-root{
+    background:var(--vault-bg);
+    min-height:100vh;
+    width:100%;
+    border-radius:0;
+    overflow:hidden;
+    position:relative;
+    font-family:'Rajdhani',sans-serif;
+    color:var(--vault-text);
+  }
+  .scanlines{
+    position:absolute;inset:0;pointer-events:none;z-index:0;
+    background:repeating-linear-gradient(to bottom,transparent 0,transparent 3px,var(--scanline) 3px,var(--scanline) 4px);
+    animation:scan 8s linear infinite;
+  }
+  @keyframes scan{0%{background-position:0 0}100%{background-position:0 100px}}
+  .grid-bg{
+    position:absolute;inset:0;pointer-events:none;z-index:0;
+    background-image:
+      linear-gradient(rgba(0,212,255,0.04) 1px,transparent 1px),
+      linear-gradient(90deg,rgba(0,212,255,0.04) 1px,transparent 1px);
+    background-size:32px 32px;
+  }
+  .content{position:relative;z-index:2;}
+
+  /* LOCK SCREEN */
+  .lock-screen{
+    display:flex;flex-direction:column;align-items:center;justify-content:center;
+    min-height:100vh;padding:2rem;
+    animation:fadeIn 0.6s ease;
+  }
+  @keyframes fadeIn{from{opacity:0;transform:translateY(16px)}to{opacity:1;transform:none}}
+  @keyframes pulse{0%,100%{box-shadow:0 0 0 0 rgba(0,212,255,0.3)}50%{box-shadow:0 0 0 16px rgba(0,212,255,0)}}
+  @keyframes spin{from{transform:rotate(0deg)}to{transform:rotate(360deg)}}
+  @keyframes blink{0%,100%{opacity:1}50%{opacity:0}}
+  @keyframes glow{0%,100%{text-shadow:0 0 8px var(--vault-accent)}50%{text-shadow:0 0 24px var(--vault-accent),0 0 48px var(--vault-accent)}}
+  @keyframes slideIn{from{opacity:0;transform:translateX(-20px)}to{opacity:1;transform:none}}
+  @keyframes barFill{from{width:0}to{width:var(--w)}}
+  @keyframes float{0%,100%{transform:translateY(0)}50%{transform:translateY(-6px)}}
+  @keyframes ringPulse{0%{transform:scale(1);opacity:0.7}100%{transform:scale(1.6);opacity:0}}
+
+  .vault-icon-wrap{
+    position:relative;margin-bottom:2rem;
+    animation:float 3s ease-in-out infinite;
+  }
+  .vault-ring{
+    position:absolute;inset:-12px;border:1px solid rgba(0,212,255,0.4);
+    border-radius:50%;animation:ringPulse 2s ease-out infinite;
+  }
+  .vault-ring2{
+    position:absolute;inset:-24px;border:1px solid rgba(0,212,255,0.2);
+    border-radius:50%;animation:ringPulse 2s ease-out 0.7s infinite;
+  }
+  .vault-icon{
+    width:80px;height:80px;border-radius:50%;
+    background:linear-gradient(135deg,#0d2847,#0a1628);
+    border:2px solid var(--vault-accent);
+    display:flex;align-items:center;justify-content:center;
+    font-size:32px;color:var(--vault-accent);
+    animation:pulse 3s ease-in-out infinite;
+    position:relative;z-index:1;
+  }
+  .vault-title{
+    font-family:'Share Tech Mono',monospace;
+    font-size:28px;letter-spacing:6px;color:var(--vault-accent);
+    margin-bottom:4px;animation:glow 3s ease-in-out infinite;
+    text-transform:uppercase;
+  }
+  .vault-subtitle{
+    font-size:14px;letter-spacing:3px;color:var(--vault-muted);
+    margin-bottom:2rem;text-transform:uppercase;
+  }
+  .lock-panel{
+    width:100%;max-width:380px;
+    background:var(--vault-panel);
+    border:1px solid var(--vault-border);
+    border-radius:12px;padding:2rem;
+    position:relative;overflow:hidden;
+  }
+  .lock-panel::before{
+    content:'';position:absolute;top:0;left:0;right:0;height:2px;
+    background:linear-gradient(90deg,transparent,var(--vault-accent),transparent);
+    animation:scan 2s linear infinite;
+  }
+  .form-label{font-size:12px;letter-spacing:2px;color:var(--vault-muted);margin-bottom:8px;display:block;text-transform:uppercase;}
+  .form-field{
+    width:100%;background:var(--vault-bg);border:1px solid var(--vault-border);
+    border-radius:6px;padding:10px 14px;color:var(--vault-text);
+    font-family:'Share Tech Mono',monospace;font-size:14px;
+    outline:none;transition:border-color 0.2s,box-shadow 0.2s;
+    margin-bottom:1.2rem;
+  }
+  .form-field:focus{border-color:var(--vault-accent);box-shadow:0 0 0 3px rgba(0,212,255,0.1);}
+  .btn-primary{
+    width:100%;padding:12px;background:linear-gradient(90deg,rgba(0,212,255,0.15),rgba(124,58,237,0.15));
+    border:1px solid var(--vault-accent);border-radius:6px;
+    color:var(--vault-accent);font-family:'Rajdhani',sans-serif;font-size:15px;
+    letter-spacing:3px;text-transform:uppercase;cursor:pointer;
+    transition:all 0.2s;font-weight:600;
+  }
+  .btn-primary:hover{background:rgba(0,212,255,0.2);box-shadow:0 0 20px rgba(0,212,255,0.2);}
+  .attempt-dots{display:flex;gap:8px;justify-content:center;margin-top:1rem;}
+  .dot{width:8px;height:8px;border-radius:50%;background:var(--vault-green);transition:background 0.3s;}
+  .dot.used{background:var(--vault-red);}
+  .status-bar{
+    display:flex;align-items:center;gap:8px;font-size:12px;letter-spacing:1px;
+    color:var(--vault-muted);margin-top:1rem;justify-content:center;
+  }
+  .status-dot{width:6px;height:6px;border-radius:50%;background:var(--vault-green);animation:blink 1.5s infinite;}
+
+  /* MAIN APP */
+  .app-layout{display:flex;min-height:100vh;animation:fadeIn 0.4s ease;}
+  .sidebar{
+    width:220px;flex-shrink:0;background:var(--vault-panel);
+    border-right:1px solid var(--vault-border);display:flex;flex-direction:column;
+  }
+  .sidebar-logo{
+    padding:1.2rem 1rem;border-bottom:1px solid var(--vault-border);
+    display:flex;align-items:center;gap:10px;
+  }
+  .logo-icon{
+    width:32px;height:32px;border-radius:6px;background:rgba(0,212,255,0.1);
+    border:1px solid var(--vault-accent);display:flex;align-items:center;justify-content:center;
+    font-size:14px;color:var(--vault-accent);
+  }
+  .logo-text{
+    font-family:'Share Tech Mono',monospace;font-size:13px;
+    color:var(--vault-accent);letter-spacing:2px;
+  }
+  .nav-section{padding:1rem 0;flex:1;}
+  .nav-label{font-size:10px;letter-spacing:3px;color:var(--vault-muted);padding:0 1rem;margin-bottom:6px;text-transform:uppercase;}
+  .nav-item{
+    display:flex;align-items:center;gap:10px;padding:10px 1rem;
+    cursor:pointer;font-size:14px;color:var(--vault-muted);
+    transition:all 0.2s;border-left:2px solid transparent;
+    font-weight:500;letter-spacing:1px;
+  }
+  .nav-item:hover{color:var(--vault-text);background:rgba(0,212,255,0.05);}
+  .nav-item.active{color:var(--vault-accent);background:rgba(0,212,255,0.08);border-left-color:var(--vault-accent);}
+  .nav-item .ni{font-size:16px;}
+  .sidebar-footer{padding:1rem;border-top:1px solid var(--vault-border);}
+  .lock-btn{
+    width:100%;padding:8px;background:rgba(255,51,102,0.1);border:1px solid rgba(255,51,102,0.3);
+    border-radius:6px;color:var(--vault-red);cursor:pointer;font-family:'Rajdhani',sans-serif;
+    font-size:13px;letter-spacing:2px;text-transform:uppercase;transition:all 0.2s;
+  }
+  .lock-btn:hover{background:rgba(255,51,102,0.2);}
+
+  /* MAIN PANEL */
+  .main-panel{flex:1;display:flex;flex-direction:column;overflow:hidden;}
+  .topbar{
+    padding:1rem 1.5rem;border-bottom:1px solid var(--vault-border);
+    display:flex;align-items:center;justify-content:space-between;background:var(--vault-panel);
+  }
+  .topbar-left{display:flex;align-items:center;gap:10px;}
+  .page-title{font-size:18px;font-weight:600;color:var(--vault-text);letter-spacing:1px;}
+  .page-badge{
+    font-size:11px;padding:2px 10px;border-radius:20px;
+    background:rgba(0,212,255,0.1);border:1px solid rgba(0,212,255,0.3);
+    color:var(--vault-accent);letter-spacing:1px;
+  }
+  .topbar-right{display:flex;align-items:center;gap:12px;}
+  .stats-chip{
+    font-size:12px;color:var(--vault-muted);letter-spacing:1px;
+    display:flex;align-items:center;gap:6px;
+  }
+  .stats-num{color:var(--vault-accent);font-family:'Share Tech Mono',monospace;font-size:16px;}
+  .btn-sm{
+    padding:6px 14px;border-radius:6px;border:1px solid var(--vault-accent);
+    background:rgba(0,212,255,0.1);color:var(--vault-accent);cursor:pointer;
+    font-family:'Rajdhani',sans-serif;font-size:13px;letter-spacing:2px;
+    text-transform:uppercase;transition:all 0.2s;font-weight:600;display:flex;align-items:center;gap:6px;
+  }
+  .btn-sm:hover{background:rgba(0,212,255,0.2);}
+
+  .main-content{flex:1;padding:1.5rem;overflow-y:auto;}
+
+  /* METRICS */
+  .metrics-row{display:grid;grid-template-columns:repeat(4,1fr);gap:12px;margin-bottom:1.5rem;}
+  .metric-card{
+    background:var(--vault-panel);border:1px solid var(--vault-border);
+    border-radius:8px;padding:1rem;position:relative;overflow:hidden;
+  }
+  .metric-card::after{
+    content:'';position:absolute;top:0;left:0;right:0;height:2px;
+  }
+  .metric-card.mc-cyan::after{background:var(--vault-accent);}
+  .metric-card.mc-purple::after{background:var(--vault-accent2);}
+  .metric-card.mc-green::after{background:var(--vault-green);}
+  .metric-card.mc-amber::after{background:var(--vault-amber);}
+  .metric-icon{font-size:20px;margin-bottom:8px;}
+  .metric-val{font-family:'Share Tech Mono',monospace;font-size:24px;color:var(--vault-text);font-weight:600;}
+  .metric-label{font-size:11px;letter-spacing:2px;color:var(--vault-muted);text-transform:uppercase;margin-top:4px;}
+
+  /* TABLE */
+  .table-wrap{background:var(--vault-panel);border:1px solid var(--vault-border);border-radius:10px;overflow:hidden;}
+  .table-header{
+    padding:1rem 1.2rem;border-bottom:1px solid var(--vault-border);
+    display:flex;align-items:center;justify-content:space-between;
+  }
+  .table-title{font-size:14px;letter-spacing:2px;color:var(--vault-accent);text-transform:uppercase;font-weight:600;}
+  .search-input{
+    background:var(--vault-bg);border:1px solid var(--vault-border);border-radius:6px;
+    padding:6px 12px;color:var(--vault-text);font-family:'Share Tech Mono',monospace;
+    font-size:12px;outline:none;width:180px;transition:border-color 0.2s;
+  }
+  .search-input:focus{border-color:var(--vault-accent);}
+  .search-input::placeholder{color:var(--vault-muted);}
+  .table-inner{width:100%;border-collapse:collapse;}
+  .table-inner th{
+    padding:10px 1rem;font-size:11px;letter-spacing:2px;color:var(--vault-muted);
+    text-align:left;text-transform:uppercase;border-bottom:1px solid var(--vault-border);
+    background:rgba(0,0,0,0.2);
+  }
+  .table-inner td{padding:12px 1rem;font-size:14px;border-bottom:1px solid rgba(13,40,71,0.5);}
+  .table-inner tr:last-child td{border-bottom:none;}
+  .table-inner tr:hover td{background:rgba(0,212,255,0.03);}
+  .site-cell{display:flex;align-items:center;gap:10px;}
+  .site-avatar{
+    width:32px;height:32px;border-radius:6px;display:flex;align-items:center;justify-content:center;
+    font-size:13px;font-weight:700;flex-shrink:0;
+  }
+  .site-name{font-weight:600;color:var(--vault-text);}
+  .site-url{font-size:12px;color:var(--vault-muted);}
+  .username-cell{font-family:'Share Tech Mono',monospace;font-size:13px;color:var(--vault-muted);}
+  .pwd-cell{display:flex;align-items:center;gap:8px;}
+  .pwd-mask{font-family:'Share Tech Mono',monospace;font-size:14px;color:var(--vault-muted);letter-spacing:2px;}
+  .eye-btn{
+    background:none;border:none;color:var(--vault-muted);cursor:pointer;
+    font-size:15px;padding:2px;transition:color 0.2s;
+  }
+  .eye-btn:hover{color:var(--vault-accent);}
+  .strength-badge{
+    display:inline-flex;align-items:center;gap:4px;
+    padding:3px 10px;border-radius:20px;font-size:11px;letter-spacing:1px;font-weight:600;text-transform:uppercase;
+  }
+  .sb-strong{background:rgba(0,255,136,0.1);border:1px solid rgba(0,255,136,0.3);color:var(--vault-green);}
+  .sb-medium{background:rgba(255,170,0,0.1);border:1px solid rgba(255,170,0,0.3);color:var(--vault-amber);}
+  .sb-weak{background:rgba(255,51,102,0.1);border:1px solid rgba(255,51,102,0.3);color:var(--vault-red);}
+  .action-btns{display:flex;gap:6px;}
+  .icon-btn{
+    width:30px;height:30px;border-radius:6px;border:1px solid var(--vault-border);
+    background:transparent;color:var(--vault-muted);cursor:pointer;
+    display:flex;align-items:center;justify-content:center;font-size:15px;transition:all 0.2s;
+  }
+  .icon-btn:hover{border-color:var(--vault-accent);color:var(--vault-accent);background:rgba(0,212,255,0.08);}
+  .icon-btn.del:hover{border-color:var(--vault-red);color:var(--vault-red);background:rgba(255,51,102,0.08);}
+
+  /* MODAL */
+  .modal-overlay{
+    position:absolute;inset:0;background:rgba(5,10,18,0.9);z-index:10;
+    display:flex;align-items:center;justify-content:center;animation:fadeIn 0.2s ease;
+  }
+  .modal-box{
+    background:var(--vault-panel);border:1px solid var(--vault-accent);
+    border-radius:12px;width:90%;max-width:400px;overflow:hidden;
+    box-shadow:0 0 40px rgba(0,212,255,0.15);
+  }
+  .modal-top{
+    padding:1rem 1.2rem;border-bottom:1px solid var(--vault-border);
+    display:flex;align-items:center;justify-content:space-between;
+    background:linear-gradient(90deg,rgba(0,212,255,0.05),transparent);
+  }
+  .modal-title{font-size:15px;letter-spacing:2px;color:var(--vault-accent);text-transform:uppercase;font-weight:600;}
+  .close-btn{
+    background:none;border:none;color:var(--vault-muted);cursor:pointer;font-size:20px;
+    padding:2px;transition:color 0.2s;
+  }
+  .close-btn:hover{color:var(--vault-red);}
+  .modal-body{padding:1.5rem;}
+  .form-row{margin-bottom:1rem;}
+  .enc-strip{
+    background:var(--vault-bg);border:1px solid var(--vault-border);border-radius:6px;
+    padding:10px 14px;margin-top:8px;font-family:'Share Tech Mono',monospace;font-size:12px;
+    color:var(--vault-amber);letter-spacing:1px;word-break:break-all;min-height:36px;
+  }
+  .enc-label{font-size:10px;letter-spacing:2px;color:var(--vault-muted);text-transform:uppercase;margin-bottom:4px;}
+
+  /* STRENGTH METER */
+  .strength-meter{display:flex;gap:3px;margin-top:6px;}
+  .sm-bar{height:3px;flex:1;border-radius:2px;background:var(--vault-border);transition:background 0.3s;}
+
+  /* TOAST */
+  .toast{
+    position:absolute;top:1rem;right:1rem;z-index:20;
+    background:var(--vault-panel);border:1px solid var(--vault-green);border-radius:8px;
+    padding:10px 16px;font-size:13px;color:var(--vault-green);
+    display:flex;align-items:center;gap:8px;letter-spacing:1px;
+    box-shadow:0 0 20px rgba(0,255,136,0.2);animation:slideIn 0.3s ease;
+  }
+  .toast.error-toast{border-color:var(--vault-red);color:var(--vault-red);box-shadow:0 0 20px rgba(255,51,102,0.2);}
+
+  /* ENC DEMO */
+  .enc-demo-wrap{background:var(--vault-panel);border:1px solid var(--vault-border);border-radius:10px;padding:1.5rem;margin-top:1.5rem;}
+  .enc-title{font-size:13px;letter-spacing:2px;color:var(--vault-accent);text-transform:uppercase;font-weight:600;margin-bottom:1rem;}
+  .enc-row{display:grid;grid-template-columns:80px 1fr;gap:8px;align-items:center;margin-bottom:8px;}
+  .enc-tag{font-size:11px;letter-spacing:2px;color:var(--vault-muted);text-transform:uppercase;}
+
+  /* SCROLLBAR */
+  .main-content::-webkit-scrollbar{width:4px;}
+  .main-content::-webkit-scrollbar-track{background:transparent;}
+  .main-content::-webkit-scrollbar-thumb{background:var(--vault-border);border-radius:2px;}
+
+  /* MOBILE RESPONSIVE MEDIA QUERIES */
+  @media (max-width: 768px) {
+    .app-layout { flex-direction: column; }
+    .sidebar { width: 100%; border-right: none; border-bottom: 1px solid var(--vault-border); }
+    .nav-section { display: flex; overflow-x: auto; padding: 0.5rem; }
+    .nav-label { display: none; }
+    .nav-item { border-left: none; border-bottom: 2px solid transparent; flex: 1; justify-content: center; font-size: 12px; padding: 8px; }
+    .nav-item.active { border-left-color: transparent; border-bottom-color: var(--vault-accent); }
+    .topbar { flex-direction: column; align-items: flex-start; gap: 1rem; }
+    .topbar-right { width: 100%; justify-content: space-between; }
+    .metrics-row { grid-template-columns: repeat(2, 1fr); }
+    .table-header { flex-direction: column; align-items: stretch; gap: 1rem; }
+    .search-input { width: 100%; }
+    .table-wrap { overflow-x: auto; }
+    .sidebar-footer { border-top: none; padding: 0.5rem 1rem 1rem; }
+  }
+
+  @media (max-width: 480px) {
+    .metrics-row { grid-template-columns: 1fr; }
+    .enc-row { grid-template-columns: 1fr; }
+    .table-inner th, .table-inner td { white-space: nowrap; }
+  }
+</style>
+
+<h2 class="sr-only">Secure Vault — Password Manager Interface</h2>
+<div class="vault-root" id="vaultRoot">
+  <div class="grid-bg"></div>
+  <div class="scanlines"></div>
+  <div class="content" id="appContent"></div>
+</div>
+
+<script>
+const sampleData=[
+  {id:1,site:'GitHub',url:'github.com',user:'hamza@dev.io',pwd:'GhR@x9!mT3vK',strength:'Strong',color:'#238636',letter:'G'},
+  {id:2,site:'Gmail',url:'gmail.com',user:'musabi.pro@gmail.com',pwd:'Gm@il2025!',strength:'Strong',color:'#EA4335',letter:'G'},
+  {id:3,site:'Discord',url:'discord.com',user:'hamza#7832',pwd:'disc0rd!!',strength:'Medium',color:'#5865F2',letter:'D'},
+  {id:4,site:'Netflix',url:'netflix.com',user:'user@netflix.com',pwd:'watch123',strength:'Weak',color:'#E50914',letter:'N'},
+  {id:5,site:'Spotify',url:'spotify.com',user:'bilal@music.pk',pwd:'Sp0t!fy$2025',strength:'Strong',color:'#1DB954',letter:'S'},
+];
+let entries=[...sampleData];
+let visible={};
+let activeNav='vault';
+let attempts=3;
+let modalMode=null;
+let editId=null;
+
+function caesar(text,shift){
+  return text.split('').map(c=>{
+    let code=c.charCodeAt(0);
+    if(code>=33&&code<=126) return String.fromCharCode(33+(code-33+shift)%94);
+    return c;
+  }).join('');
+}
+
+function getStrength(pwd){
+  let score=0;
+  if(pwd.length>=8)score++;if(pwd.length>=12)score++;
+  if(/[A-Z]/.test(pwd)&&/[a-z]/.test(pwd))score++;
+  if(/[0-9]/.test(pwd))score++;
+  if(/[^a-zA-Z0-9]/.test(pwd))score++;
+  return score<=2?'Weak':score<=3?'Medium':'Strong';
+}
+
+function render(){
+  const el=document.getElementById('appContent');
+  el.innerHTML=views[activeScreen]();
+  attachEvents();
+}
+
+let activeScreen='lock';
+
+const views={
+  lock(){
+    return `
+    <div class="lock-screen">
+      <div class="vault-icon-wrap">
+        <div class="vault-ring"></div><div class="vault-ring2"></div>
+        <div class="vault-icon"><i class="ti ti-shield-lock" aria-hidden="true"></i></div>
+      </div>
+      <div class="vault-title">SECURE VAULT</div>
+      <div class="vault-subtitle">Password Manager System v2.6</div>
+      <div class="lock-panel">
+        <div class="form-row">
+          <label class="form-label">System User</label>
+          <input class="form-field" id="userIn" value="User" placeholder="Enter username">
+        </div>
+        <div class="form-row">
+          <label class="form-label">Master Password</label>
+          <input class="form-field" id="passIn" type="password" placeholder="••••••••••">
+        </div>
+        <button class="btn-primary" id="unlockBtn">
+          <i class="ti ti-lock-open" aria-hidden="true"></i> Authenticate
+        </button>
+        <div class="attempt-dots">
+          ${[0,1,2].map(i=>`<div class="dot ${i>=attempts?'used':''}" title="Attempt slot"></div>`).join('')}
+        </div>
+        <div class="status-bar">
+          <div class="status-dot"></div>
+          System online — ${attempts} attempts remaining
+        </div>
+        <div style="margin-top:1rem;font-size:11px;color:var(--vault-muted);text-align:center;letter-spacing:1px;">
+          Hint: password is <span style="color:var(--vault-amber);font-family:'Share Tech Mono',monospace">admin123</span>
+        </div>
+      </div>
+    </div>`;
+  },
+
+  main(){
+    const strengthCount=(s)=>entries.filter(e=>e.strength===s).length;
+    const navItems=[
+      {id:'vault',icon:'ti-shield',label:'Vault'},
+      {id:'add',icon:'ti-plus',label:'Add Password'},
+      {id:'encrypt',icon:'ti-lock',label:'Encryption'},
+    ];
+    return `
+    <div class="app-layout" style="position:relative;">
+      <div class="sidebar">
+        <div class="sidebar-logo">
+          <div class="logo-icon"><i class="ti ti-shield-lock" aria-hidden="true"></i></div>
+          <div class="logo-text">VAULT</div>
+        </div>
+        <div class="nav-section">
+          <div class="nav-label">Navigation</div>
+          ${navItems.map(n=>`
+          <div class="nav-item ${activeNav===n.id?'active':''}" data-nav="${n.id}">
+            <i class="ti ${n.icon} ni" aria-hidden="true"></i>${n.label}
+          </div>`).join('')}
+        </div>
+        <div class="sidebar-footer">
+          <button class="lock-btn" id="lockBtn"><i class="ti ti-lock" aria-hidden="true"></i> Lock Vault</button>
+        </div>
+      </div>
+
+      <div class="main-panel">
+        <div class="topbar">
+          <div class="topbar-left">
+            <div class="page-title">${activeNav==='vault'?'Password Vault':activeNav==='add'?'Add New Entry':'Encryption Demo'}</div>
+            ${activeNav==='vault'?`<div class="page-badge">${entries.length} ENTRIES</div>`:''}
+          </div>
+          <div class="topbar-right">
+            <div class="stats-chip"><span class="stats-num">${strengthCount('Strong')}</span> strong</div>
+            <div class="stats-chip"><span class="stats-num" style="color:var(--vault-amber)">${strengthCount('Weak')}</span> weak</div>
+          </div>
+        </div>
+
+        <div class="main-content">
+          ${activeNav==='vault'?vaultView():activeNav==='add'?addView():encView()}
+        </div>
+      </div>
+
+      ${modalMode?modalHTML():''}
+      <div id="toastArea" style="position:absolute;top:1rem;right:1rem;z-index:20;"></div>
+    </div>`;
+  }
+};
+
+function vaultView(){
+  return `
+  <div class="metrics-row">
+    <div class="metric-card mc-cyan">
+      <div class="metric-icon" style="color:var(--vault-accent)"><i class="ti ti-database" aria-hidden="true"></i></div>
+      <div class="metric-val">${entries.length}</div>
+      <div class="metric-label">Total Entries</div>
+    </div>
+    <div class="metric-card mc-green">
+      <div class="metric-icon" style="color:var(--vault-green)"><i class="ti ti-shield-check" aria-hidden="true"></i></div>
+      <div class="metric-val">${entries.filter(e=>e.strength==='Strong').length}</div>
+      <div class="metric-label">Strong Passwords</div>
+    </div>
+    <div class="metric-card mc-amber">
+      <div class="metric-icon" style="color:var(--vault-amber)"><i class="ti ti-alert-triangle" aria-hidden="true"></i></div>
+      <div class="metric-val">${entries.filter(e=>e.strength==='Weak').length}</div>
+      <div class="metric-label">Weak Passwords</div>
+    </div>
+    <div class="metric-card mc-purple">
+      <div class="metric-icon" style="color:var(--vault-accent2)"><i class="ti ti-lock" aria-hidden="true"></i></div>
+      <div class="metric-val">AES</div>
+      <div class="metric-label">Encryption</div>
+    </div>
+  </div>
+
+  <div class="table-wrap">
+    <div class="table-header">
+      <div class="table-title"><i class="ti ti-list" aria-hidden="true"></i> Saved Passwords</div>
+      <input class="search-input" id="searchIn" placeholder="Search sites..." oninput="filterTable(this.value)">
+    </div>
+    <div id="tableBody">
+      ${tableHTML(entries)}
+    </div>
+  </div>`;
+}
+
+function tableHTML(data){
+  if(!data.length)return`<div style="padding:2rem;text-align:center;color:var(--vault-muted);font-size:14px;letter-spacing:1px;">NO ENTRIES FOUND</div>`;
+  return`<table class="table-inner" role="table">
+    <thead>
+      <tr>
+        <th>Site</th><th>Username</th><th>Password</th><th>Strength</th><th>Added</th><th>Actions</th>
+      </tr>
+    </thead>
+    <tbody>
+      ${data.map(e=>`
+      <tr>
+        <td>
+          <div class="site-cell">
+            <div class="site-avatar" style="background:${e.color}22;color:${e.color};border:1px solid ${e.color}44">${e.letter}</div>
+            <div>
+              <div class="site-name">${e.site}</div>
+              <div class="site-url">${e.url}</div>
+            </div>
+          </div>
+        </td>
+        <td class="username-cell">${e.user}</td>
+        <td>
+          <div class="pwd-cell">
+            <span class="pwd-mask" id="pwd-${e.id}">${visible[e.id]?e.pwd:'••••••••'}</span>
+            <button class="eye-btn" onclick="toggleVis(${e.id})" aria-label="${visible[e.id]?'Hide':'Show'} password">
+              <i class="ti ${visible[e.id]?'ti-eye-off':'ti-eye'}" aria-hidden="true"></i>
+            </button>
+          </div>
+        </td>
+        <td>
+          <span class="strength-badge ${e.strength==='Strong'?'sb-strong':e.strength==='Medium'?'sb-medium':'sb-weak'}">
+            ${e.strength}
+          </span>
+        </td>
+        <td style="font-size:12px;color:var(--vault-muted);font-family:'Share Tech Mono',monospace">2026/06/06</td>
+        <td>
+          <div class="action-btns">
+            <button class="icon-btn" onclick="openEdit(${e.id})" aria-label="Edit ${e.site}"><i class="ti ti-edit" aria-hidden="true"></i></button>
+            <button class="icon-btn del" onclick="deleteEntry(${e.id})" aria-label="Delete ${e.site}"><i class="ti ti-trash" aria-hidden="true"></i></button>
+          </div>
+        </td>
+      </tr>`).join('')}
+    </tbody>
+  </table>`;
+}
+
+function addView(){
+  return`
+  <div style="max-width:480px;">
+    <div class="table-wrap" style="overflow:visible;">
+      <div class="table-header"><div class="table-title"><i class="ti ti-plus" aria-hidden="true"></i> New Password Entry</div></div>
+      <div style="padding:1.5rem;">
+        <div class="form-row">
+          <label class="form-label">Website / App Name</label>
+          <input class="form-field" id="newSite" placeholder="e.g. GitHub">
+        </div>
+        <div class="form-row">
+          <label class="form-label">Website URL</label>
+          <input class="form-field" id="newUrl" placeholder="e.g. github.com">
+        </div>
+        <div class="form-row">
+          <label class="form-label">Username / Email</label>
+          <input class="form-field" id="newUser" placeholder="e.g. user@email.com">
+        </div>
+        <div class="form-row">
+          <label class="form-label">Password</label>
+          <input class="form-field" id="newPwd" type="text" placeholder="Enter password" oninput="updateStrengthMeter(this.value)">
+          <div class="strength-meter">
+            <div class="sm-bar" id="sm1"></div>
+            <div class="sm-bar" id="sm2"></div>
+            <div class="sm-bar" id="sm3"></div>
+            <div class="sm-bar" id="sm4"></div>
+            <div class="sm-bar" id="sm5"></div>
+          </div>
+        </div>
+        <button class="btn-primary" onclick="addEntry()" style="margin-top:0.5rem;">
+          <i class="ti ti-shield-plus" aria-hidden="true"></i>  Save to Vault
+        </button>
+      </div>
+    </div>
+  </div>`;
+}
+
+function encView(){
+  return`
+  <div style="max-width:520px;">
+    <div class="table-wrap" style="overflow:visible;">
+      <div class="table-header"><div class="table-title"><i class="ti ti-lock" aria-hidden="true"></i> Caesar Cipher — Shift 7</div></div>
+      <div style="padding:1.5rem;">
+        <div class="form-row">
+          <label class="form-label">Input Text</label>
+          <input class="form-field" id="encInput" placeholder="Type anything..." oninput="runEnc(this.value)">
+        </div>
+        <div style="margin-bottom:1rem;">
+          <div class="enc-label">Encrypted Output</div>
+          <div class="enc-strip" id="encOut">—</div>
+        </div>
+        <div>
+          <div class="enc-label">Decrypted (verification)</div>
+          <div class="enc-strip" id="decOut" style="color:var(--vault-green)">—</div>
+        </div>
+        <div style="margin-top:1.5rem;padding:1rem;background:var(--vault-bg);border:1px solid var(--vault-border);border-radius:6px;">
+          <div style="font-size:11px;letter-spacing:2px;color:var(--vault-muted);text-transform:uppercase;margin-bottom:8px;">About Encryption</div>
+          <div style="font-size:14px;color:var(--vault-text);line-height:1.6;">
+            Passwords are stored with Caesar Cipher (shift 7). Each character is shifted in ASCII space. Decryption reverses the shift to display original passwords in the vault.
+          </div>
+        </div>
+      </div>
+    </div>
+  </div>`;
+}
+
+function modalHTML(){
+  const e=entries.find(x=>x.id===editId)||{};
+  return`
+  <div class="modal-overlay" id="modalOverlay" onclick="closeModalOutside(event)">
+    <div class="modal-box">
+      <div class="modal-top">
+        <div class="modal-title"><i class="ti ti-edit" aria-hidden="true"></i> Edit Entry</div>
+        <button class="close-btn" onclick="closeModal()" aria-label="Close modal"><i class="ti ti-x" aria-hidden="true"></i></button>
+      </div>
+      <div class="modal-body">
+        <div class="form-row">
+          <label class="form-label">Website</label>
+          <input class="form-field" id="mSite" value="${e.site||''}">
+        </div>
+        <div class="form-row">
+          <label class="form-label">Username</label>
+          <input class="form-field" id="mUser" value="${e.user||''}">
+        </div>
+        <div class="form-row">
+          <label class="form-label">New Password</label>
+          <input class="form-field" id="mPwd" type="text" value="${e.pwd||''}">
+        </div>
+        <button class="btn-primary" onclick="saveEdit()">
+          <i class="ti ti-check" aria-hidden="true"></i>  Save Changes
+        </button>
+      </div>
+    </div>
+  </div>`;
+}
+
+function attachEvents(){
+  document.querySelectorAll('[data-nav]').forEach(el=>{
+    el.addEventListener('click',()=>{
+      activeNav=el.dataset.nav;
+      modalMode=null;
+      render();
+    });
+  });
+  const lb=document.getElementById('lockBtn');
+  if(lb)lb.addEventListener('click',()=>{activeScreen='lock';attempts=3;render();});
+  const ub=document.getElementById('unlockBtn');
+  if(ub)ub.addEventListener('click',tryUnlock);
+  const pi=document.getElementById('passIn');
+  if(pi)pi.addEventListener('keydown',e=>{if(e.key==='Enter')tryUnlock();});
+}
+
+function tryUnlock(){
+  const p=document.getElementById('passIn').value;
+  if(p==='admin123'){activeScreen='main';activeNav='vault';render();}
+  else{
+    attempts=Math.max(0,attempts-1);
+    if(attempts===0){showToastOverlay('Too many failed attempts','error');attempts=3;}
+    else showToastOverlay(`Wrong password — ${attempts} left`,'error');
+    render();
+  }
+}
+
+function showToastOverlay(msg,type){
+  const area=document.getElementById('toastArea');
+  if(!area)return;
+  const t=document.createElement('div');
+  t.className='toast'+(type==='error'?' error-toast':'');
+  t.innerHTML=`<i class="ti ${type==='error'?'ti-x':'ti-check'}" aria-hidden="true"></i> ${msg}`;
+  area.appendChild(t);
+  setTimeout(()=>t.remove(),3000);
+}
+
+function toggleVis(id){
+  visible[id]=!visible[id];
+  const span=document.getElementById('pwd-'+id);
+  const e=entries.find(x=>x.id===id);
+  if(!span||!e)return;
+  span.textContent=visible[id]?e.pwd:'••••••••';
+  span.nextElementSibling.querySelector('i').className='ti '+(visible[id]?'ti-eye-off':'ti-eye');
+}
+
+function filterTable(q){
+  const filtered=q?entries.filter(e=>e.site.toLowerCase().includes(q.toLowerCase())||e.url.toLowerCase().includes(q.toLowerCase())):entries;
+  const tb=document.getElementById('tableBody');
+  if(tb)tb.innerHTML=tableHTML(filtered);
+}
+
+function openEdit(id){
+  editId=id;modalMode='edit';
+  render();
+}
+
+function closeModal(){modalMode=null;render();}
+function closeModalOutside(e){if(e.target.id==='modalOverlay')closeModal();}
+
+function saveEdit(){
+  const s=document.getElementById('mSite').value.trim();
+  const u=document.getElementById('mUser').value.trim();
+  const p=document.getElementById('mPwd').value.trim();
+  const idx=entries.findIndex(x=>x.id===editId);
+  if(idx!==-1){
+    if(s)entries[idx].site=s;
+    if(u)entries[idx].user=u;
+    if(p){entries[idx].pwd=p;entries[idx].strength=getStrength(p);}
+    entries[idx].letter=entries[idx].site[0].toUpperCase();
+  }
+  modalMode=null;render();showToastOverlay('Entry updated');
+}
+
+function deleteEntry(id){
+  entries=entries.filter(e=>e.id!==id);
+  delete visible[id];
+  render();showToastOverlay('Entry deleted');
+}
+
+function addEntry(){
+  const site=document.getElementById('newSite').value.trim();
+  const url=document.getElementById('newUrl').value.trim();
+  const user=document.getElementById('newUser').value.trim();
+  const pwd=document.getElementById('newPwd').value.trim();
+  if(!site||!user||!pwd){showToastOverlay('All fields required','error');return;}
+  const id=Date.now();
+  const colors=['#00d4ff','#7c3aed','#00ff88','#ffaa00','#ff6b6b'];
+  const color=colors[entries.length%colors.length];
+  entries.push({id,site,url:url||site.toLowerCase()+'.com',user,pwd,strength:getStrength(pwd),color,letter:site[0].toUpperCase()});
+  activeNav='vault';render();showToastOverlay('Password saved to vault');
+}
+
+function updateStrengthMeter(val){
+  const strength=getStrength(val);
+  const count=strength==='Weak'?1:strength==='Medium'?3:5;
+  const color=strength==='Weak'?'var(--vault-red)':strength==='Medium'?'var(--vault-amber)':'var(--vault-green)';
+  for(let i=1;i<=5;i++){
+    const b=document.getElementById('sm'+i);
+    if(b)b.style.background=i<=count?color:'var(--vault-border)';
+  }
+}
+
+function runEnc(val){
+  const enc=document.getElementById('encOut');
+  const dec=document.getElementById('decOut');
+  if(enc)enc.textContent=val?caesar(val,7):'—';
+  if(dec){const e=caesar(val,7);dec.textContent=e?caesar(e,-7+94):'—';}
+}
+
+render();
+</script>
+</body>
+</html>
